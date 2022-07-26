@@ -170,7 +170,7 @@ class TestITListener(object):
         yield
         if hasattr(self, 'item') and self.item:
             steps_data, results_steps_data = step.get_steps_data()
-            if fixturedef.scope == 'function':
+            if fixturedef.scope == 'function' or fixturedef.scope == 'class':
                 if not hasattr(self.item, 'test_method_setup_steps'):
                     self.item.test_method_setup_steps = []
                     self.item.test_method_setup_results_steps = []

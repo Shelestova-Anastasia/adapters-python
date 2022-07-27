@@ -542,8 +542,14 @@ class TestITListener(object):
                     if mark.kwargs:
                         data['message'] = mark.kwargs['reason']
 
-        if hasattr(item, 'test_message'):
-            data['message'] = item.test_message
+        if hasattr(item, 'messages'):
+            if len(item.messages) == 1:
+                result_msg = item.messages[0]
+            else:
+                result_msg = ''
+                for idx, msg in enumerate(item.messages):
+                    result_msg += f'--- {idx + 1} message: {msg} ---/>'
+            data['message'] = result_msg
 
         if hasattr(item.function, 'test_displayname'):
             if hasattr(item, 'array_parametrize_mark_id'):
@@ -632,7 +638,9 @@ class TestITListener(object):
     @testit_adapter_pytest.hookimpl
     def add_message(self, test_message):
         if self.item:
-            self.item.test_message = str(test_message)
+            if not hasattr(self.item, 'messages'):
+                self.item.messages = []
+            self.item.messages.append(str(test_message))
 
     @testit_adapter_pytest.hookimpl
     def add_attachments(self, attach_paths):

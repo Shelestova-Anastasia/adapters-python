@@ -194,7 +194,7 @@ class TestITListener(object):
         if hasattr(self, 'item') and not self.item:
             return
         teardown_steps, teardown_results_steps = step.get_steps_data()
-        if fixturedef.scope == 'function':
+        if fixturedef.scope == 'function' or fixturedef.scope == 'class':
             if not hasattr(self.item, 'test_method_teardown_steps'):
                 self.item.test_method_teardown_steps = []
                 self.item.test_method_teardown_results_steps = []

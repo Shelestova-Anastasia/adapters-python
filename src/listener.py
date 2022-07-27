@@ -1,8 +1,8 @@
 import configparser
 import inspect
 import os
-import re
 import pickle
+import re
 from datetime import datetime
 
 import pytest
@@ -102,56 +102,59 @@ class TestITListener(object):
 
     @pytest.hookimpl
     def pytest_collection_modifyitems(self, session, config, items):
-        index = 0
-        new_items = []
-        plugin_info = config.pluginmanager.list_plugin_distinfo()
+        try:
+            index = 0
+            new_items = []
+            plugin_info = config.pluginmanager.list_plugin_distinfo()
 
-        for plugin, dist in plugin_info:
-            if 'pytest_check' == dist.project_name:
-                from pytest_check import check_methods
-                self.pytest_check_get_failures = check_methods.get_failures
-                break
+            for plugin, dist in plugin_info:
+                if 'pytest_check' == dist.project_name:
+                    from pytest_check import check_methods
+                    self.pytest_check_get_failures = check_methods.get_failures
+                    break
 
-        if not hasattr(self, "testrun_id"):
-            self.testrun_id = pickle.loads(config.workerinput["testrun_id"]) if\
-                hasattr(config, 'workerinput') else config.testrun_id
+            if not hasattr(self, "testrun_id"):
+                self.testrun_id = pickle.loads(config.workerinput["testrun_id"]) if \
+                    hasattr(config, 'workerinput') else config.testrun_id
 
-        self.project_id, json_points = self.requests.get_testrun(
-            self.testrun_id)
+            self.project_id, json_points = self.requests.get_testrun(
+                self.testrun_id)
 
-        resolved_autotests = autotests_parser(json_points, self.configuration_id)
+            resolved_autotests = autotests_parser(json_points, self.configuration_id)
 
-        for item in items:
-            if hasattr(item.function, 'test_external_id'):
+            for item in items:
+                if hasattr(item.function, 'test_external_id'):
 
-                if item.own_markers:
-                    for mark in item.own_markers:
-                        if mark.name == 'parametrize':
-                            if not hasattr(item, 'array_parametrize_mark_id'):
-                                item.array_parametrize_mark_id = []
-                            item.array_parametrize_mark_id.append(
-                                item.own_markers.index(mark))
+                    if item.own_markers:
+                        for mark in item.own_markers:
+                            if mark.name == 'parametrize':
+                                if not hasattr(item, 'array_parametrize_mark_id'):
+                                    item.array_parametrize_mark_id = []
+                                item.array_parametrize_mark_id.append(
+                                    item.own_markers.index(mark))
 
-                item.test_external_id = self.param_attribute_collector(
-                    item.function.test_external_id,
-                    item.callspec.params) if hasattr(item,
-                                      'array_parametrize_mark_id'
-                                      ) else item.function.test_external_id
+                    item.test_external_id = self.param_attribute_collector(
+                        item.function.test_external_id,
+                        item.callspec.params) if hasattr(item,
+                                                         'array_parametrize_mark_id'
+                                                         ) else item.function.test_external_id
 
-                item.index = index
-                item_id = items.index(item)
-                index = index + 1 if item_id + \
-                                     1 < len(items) and item.originalname == \
-                                     items[item_id + 1].originalname else 0
+                    item.index = index
+                    item_id = items.index(item)
+                    index = index + 1 if item_id + \
+                                         1 < len(items) and item.originalname == \
+                                         items[item_id + 1].originalname else 0
 
-                if resolved_autotests:
-                    if item.test_external_id in resolved_autotests:
-                        new_items.append(item)
-        if resolved_autotests:
-            if not new_items:
-                print('The specified tests were not found!')
-                raise SystemExit
-            session.items = new_items
+                    if resolved_autotests:
+                        if item.test_external_id in resolved_autotests:
+                            new_items.append(item)
+            if resolved_autotests:
+                if not new_items:
+                    print('The specified tests were not found!')
+                    raise SystemExit
+                session.items = new_items
+        except Exception as e:
+            print(f'testit error. pytest_collection_modifyitems error, cause {e}')
 
     @pytest.hookimpl
     def pytest_runtest_protocol(self, item):
@@ -206,8 +209,8 @@ class TestITListener(object):
                 if not hasattr(self.item, 'test_traces'):
                     self.item.test_traces = ''
                 self.item.test_traces += (report.longreprtext if report.longreprtext else
-                    ''.join(['\n'.join(self.item.old_failures)]) +
-                    f'\n{"-" * 60}\nFailed Checks: {len(self.item.old_failures)}') + f'\n{"-" * 60}\n'
+                                          ''.join(['\n'.join(self.item.old_failures)]) +
+                                          f'\n{"-" * 60}\nFailed Checks: {len(self.item.old_failures)}') + f'\n{"-" * 60}\n'
                 if hasattr(self.item, 'old_failures'):
                     del self.item.old_failures
             if not hasattr(self.item, 'test_duration'):
@@ -218,10 +221,12 @@ class TestITListener(object):
     def pytest_runtest_logfinish(self):
         if not hasattr(self, 'item') or not self.item:
             return
-        data_item = self.attribute_collector(self.item)
-        if data_item:
-            autotest = self.requests.get_autotest(
-                data_item['externalID'], self.project_id).json()
+
+        try:
+            data_item = self.attribute_collector(self.item)
+            if data_item:
+                autotest = self.requests.get_autotest(
+                    data_item['externalID'], self.project_id).json()
             if not autotest:
                 autotest_id = self.requests.create_autotest(
                     JSONFixture.create_autotest(
@@ -300,6 +305,8 @@ class TestITListener(object):
                     data_item['message']
                 )]
             )
+        except Exception as e:
+            print(f'testit error. pytest_runtest_logfinish error, cause: {e}')
 
     # TODO: move private methods into separate classes according to the purpose of the object
     @staticmethod
@@ -406,20 +413,20 @@ class TestITListener(object):
             for link in item.function.test_links:
                 data['links'].append({})
                 data['links'][-1]['url'] = TestITListener.param_attribute_collector(
-                                                link['url'],
-                                                item.callspec.params)
+                    link['url'],
+                    item.callspec.params)
                 if link['title']:
                     data['links'][-1]['title'] = TestITListener.param_attribute_collector(
-                                                    link['title'],
-                                                    item.callspec.params)
+                        link['title'],
+                        item.callspec.params)
                 if link['type']:
                     data['links'][-1]['type'] = TestITListener.param_attribute_collector(
-                                                    link['type'],
-                                                    item.callspec.params)
+                        link['type'],
+                        item.callspec.params)
                 if link['description']:
                     data['links'][-1]['description'] = TestITListener.param_attribute_collector(
-                                            link['description'],
-                                            item.callspec.params)
+                        link['description'],
+                        item.callspec.params)
         else:
             data['links'] = item.function.test_links
 
@@ -637,17 +644,20 @@ class TestITListener(object):
     @testit_adapter_pytest.hookimpl
     def load_attachments(self, attach_paths):
         attachments = []
-        for path in attach_paths:
-            if os.path.isfile(path):
-                attachment_id = self.requests.load_attachment(open(path, "rb"))
+        try:
+            for path in attach_paths:
+                if os.path.isfile(path):
+                    attachment_id = self.requests.load_attachment(open(path, "rb"))
 
-                if attachment_id:
-                    attachments.append(
-                        {
-                            'id': attachment_id
-                        })
-            else:
-                print(f'File ({path}) not found!')
+                    if attachment_id:
+                        attachments.append(
+                            {
+                                'id': attachment_id
+                            })
+                else:
+                    print(f'File ({path}) not found!')
+        except Exception as e:
+            print(f"testit error. load_attachments error, cause: {e} ")
         return attachments
 
     @testit_adapter_pytest.hookimpl

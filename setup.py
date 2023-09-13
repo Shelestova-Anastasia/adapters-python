@@ -2,7 +2,7 @@ from setuptools import setup
 
 setup(
     name='testit-adapter-pytest',
-    version='1.1.1.ngsw',
+    version='1.1.1.dev1',
     description='Pytest adapter for Test IT',
     url='https://pypi.org/project/testit-adapter-pytest/',
     license='Apache-2.0',
